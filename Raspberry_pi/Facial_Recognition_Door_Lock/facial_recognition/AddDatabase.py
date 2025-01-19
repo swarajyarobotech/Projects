@@ -12,9 +12,14 @@ from smbus2 import SMBus
 # Ultrasonic Sensor Pins
 TRIG = 18
 ECHO = 24
+
+# Push Button Pin
+BUTTON = 23
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
+GPIO.setup(BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Pull-up resistor for the button
 
 # I2C LCD Configuration
 I2C_ADDR = 0x27  # Adjust based on your LCD's address
@@ -96,34 +101,44 @@ def capture_faces(person_dir):
     rawCapture = PiRGBArray(cam, size=(512, 304))
 
     img_counter = 0
-    lcd_display("Waiting for", LCD_LINE_1)
-    lcd_display("person...", LCD_LINE_2)
+    lcd_display("Press button", LCD_LINE_1)
+    lcd_display("to start...", LCD_LINE_2)
 
     try:
-        while img_counter < 10:
-            distance = measure_distance()
-            if distance < 100:  # Person detected within 100 cm
-                lcd_display("Person detected", LCD_LINE_1)
-                lcd_display(f"Dist: {distance:.1f} cm", LCD_LINE_2)
-                print(f"[INFO] Person detected at {distance:.2f} cm")
+        while True:
+            if GPIO.input(BUTTON) == GPIO.LOW:  # Button is pressed
+                lcd_display("Waiting for", LCD_LINE_1)
+                lcd_display("person...", LCD_LINE_2)
 
-                for frame in cam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-                    image = frame.array
-                    img_name = os.path.join(person_dir, f"image_{img_counter}.jpg")
-                    cv2.imwrite(img_name, image)
-                    print(f"[INFO] {img_name} written!")
-                    img_counter += 1
-                    rawCapture.truncate(0)
+                while GPIO.input(BUTTON) == GPIO.LOW:  # Button remains pressed
+                    distance = measure_distance()
+                    if distance < 100:  # Person detected within 100 cm
+                        lcd_display("Person detected", LCD_LINE_1)
+                        lcd_display(f"Dist: {distance:.1f} cm", LCD_LINE_2)
+                        print(f"[INFO] Person detected at {distance:.2f} cm")
 
-                    lcd_display(f"Captured {img_counter}", LCD_LINE_1)
-                    lcd_display(f"images.", LCD_LINE_2)
+                        for frame in cam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+                            image = frame.array
+                            img_name = os.path.join(person_dir, f"image_{img_counter}.jpg")
+                            cv2.imwrite(img_name, image)
+                            print(f"[INFO] {img_name} written!")
+                            img_counter += 1
+                            rawCapture.truncate(0)
 
-                    if img_counter >= 10:
-                        break
-            else:
-                lcd_display("No person in", LCD_LINE_1)
-                lcd_display("range.", LCD_LINE_2)
-                time.sleep(0.5)
+                            lcd_display(f"Captured {img_counter}", LCD_LINE_1)
+                            lcd_display(f"images.", LCD_LINE_2)
+
+                            if img_counter >= 10 or GPIO.input(BUTTON) == GPIO.HIGH:
+                                break
+
+                    else:
+                        lcd_display("No person in", LCD_LINE_1)
+                        lcd_display("range.", LCD_LINE_2)
+                        time.sleep(0.5)
+
+                if img_counter >= 10:
+                    break
+
     finally:
         cam.close()
 

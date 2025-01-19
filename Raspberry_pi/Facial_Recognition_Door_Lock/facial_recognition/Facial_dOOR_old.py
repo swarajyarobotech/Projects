@@ -8,6 +8,14 @@ import pickle
 import cv2
 
 SERVO_PIN = 12  # GPIO 12
+BUZZER_PIN = 21
+RED_LED_PIN = 17
+GREEN_LED_PIN = 9
+TRIG_PIN = 18
+ECHO_PIN = 24
+BUTTON_PIN = 23
+
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 
